@@ -59,6 +59,10 @@ jobs:
       - name: Android SDK pieces
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;35.0.0" >/dev/null
       - name: Build the APK
+        env:
+          # A throwaway key in $RUNNER_TEMP, so nothing can be published with it and no secret is involved. Passing
+          # KEYSTORE also keeps build.sh off its `~/.android` fallback, which does not exist on a fresh runner.
+          KEYSTORE: ${{ runner.temp }}/build.keystore
         run: |
           v="${GITHUB_REF_NAME:-main}"; v="${v#v}"; v="${v%%-*}"
           HM_SKIP_WEB_BUILD=1 VERSION_NAME="${v:-0.0.0}" VERSION_CODE=1 android/build.sh
