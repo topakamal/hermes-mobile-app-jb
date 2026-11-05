@@ -12,6 +12,7 @@ These files carry the plumbing every screen uses. Screens are in 3.
 - `applog.ts` — what the page itself adds to the diagnostic log: `startAppLog` runs once from `main.tsx`; the shape of page errors and error toasts, never their words. `openChatText` gives the scrubber the open chat's text.
 - `diaglog.ts` — the page's side of the diagnostic log: `logEvent` checks every part of an event (`checkedFields`) and hands it to the shell, or keeps it in memory in a plain browser; `stackFrames`, `noteConn`, `noteRpc` and `routeName` say what is taken from an error, a connection, a gateway call and a dashboard path. It sends nothing.
 - `diagnostics.ts` — what Report a problem may include (`collectDiagnostics`, `diagnosticsText`) and the Settings switch and delete button (`diagnosticsEnabled`, `setDiagnosticsEnabled`, `clearDiagnostics`, `flushDiagToPlugin`).
+- `jailbreak.ts` — the Jailbreak picker's calls into the plugin (`loadTemplates`, `syncTemplates`, `applyTemplate`, `restoreSoul`) and their types (`JailbreakTemplate`, `JailbreakState`, `JailbreakList`); the sheet itself is in `components/Bots.tsx` (3.16).
 - `secure-bridge.ts` — takes the bridge key with `handshake()` and replaces `window.HermesAndroid` with the keyed
   wrapper over `METHODS` (2.3).
 - `bridge.ts` — typed wrappers over the native bridge with browser fallbacks: `baseUrl`, `wsUrl` (fresh token per

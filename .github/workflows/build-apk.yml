@@ -1,0 +1,73 @@
+name: Build APK
+
+# Builds an installable APK without publishing a release: no KEYSTORE_B64 secret needed, the build signs with a
+# throwaway key it generates (so an APK from here installs beside the official one, and cannot update it).
+# Run it from the Actions tab ("Run workflow"), or it runs on every push to main.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+# OpenUI's install script sends telemetry unless one of these is set.
+env:
+  OPENUI_TELEMETRY_DISABLED: '1'
+  DO_NOT_TRACK: '1'
+
+permissions:
+  contents: read
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+        working-directory: web
+      - run: npx vite build
+        working-directory: web
+      - uses: actions/upload-artifact@v6
+        with:
+          name: web-dist
+          path: web/dist/index.html
+          retention-days: 1
+          if-no-files-found: error
+
+  apk:
+    needs: web
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/download-artifact@v5
+        with:
+          name: web-dist
+          path: web/dist
+      - name: Android SDK pieces
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" "build-tools;35.0.0" >/dev/null
+      - name: Build the APK
+        run: |
+          v="${GITHUB_REF_NAME:-main}"; v="${v#v}"; v="${v%%-*}"
+          HM_SKIP_WEB_BUILD=1 VERSION_NAME="${v:-0.0.0}" VERSION_CODE=1 android/build.sh
+          cp android/build/hermes-mobile.apk android/build/hermux.apk
+      - uses: actions/upload-artifact@v6
+        with:
+          name: hermux-apk
+          path: |
+            android/build/hermux.apk
+            android/build/hermes-mobile.apk
+          retention-days: 14
+          if-no-files-found: error

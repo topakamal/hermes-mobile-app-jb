@@ -1,6 +1,6 @@
 ### 7.4 Workflows (`.github/workflows/`)
 
-Three files. Two environment variables, `OPENUI_TELEMETRY_DISABLED=1` and `DO_NOT_TRACK=1`, are set in `ci.yml` and `release.yml` because OpenUI's install script sends telemetry otherwise.
+Four files. Two environment variables, `OPENUI_TELEMETRY_DISABLED=1` and `DO_NOT_TRACK=1`, are set in `ci.yml`, `release.yml` and `build-apk.yml` because OpenUI's install script sends telemetry otherwise.
 
 **`ci.yml`, workflow "CI"**, runs on every pull request and on pushes to `main` (a branch push without a PR runs nothing). `concurrency` groups runs by PR: a newer push cancels the PR's older run; runs on `main` always finish. `permissions` gives the token read access only (`contents: read`, `pull-requests: read`), whatever the repository's default. Every job has a `timeout-minutes` limit (5 to 15 minutes) instead of GitHub's 6-hour default, and every checkout sets `persist-credentials: false`, so the token is not left in `.git/config` for later steps (npm and pip install scripts, the test scripts): no step uses git with it. Jobs, all on `ubuntu-latest`; the slow ones only run when the change needs them, and a skipped job counts as passed for the `main` ruleset:
 
@@ -16,6 +16,8 @@ Three files. Two environment variables, `OPENUI_TELEMETRY_DISABLED=1` and `DO_NO
 | `hermes-contract` | Mock Hermes matches the pinned Hermes | Only when `contract` is true. Node 22 with npm cache, `astral-sh/setup-uv` with its cache keyed on the Hermes pin; `npm ci` in `tools/web-e2e` (no browser download), then `tools/hermes-contract/run.sh "$RUNNER_TEMP/hermes-contract"` (it also uses the runner's `python3` for the fake model). 15-minute limit; a run takes about 3 minutes (127 cases). |
 
 Not in CI: `e2e.py` and the other phone tools, `test_bghost.sh`, `tools/web-e2e/coldstart.cjs`.
+
+**`build-apk.yml`, workflow "Build APK"**, builds an installable APK **without publishing a release**: it runs from the Actions tab (`workflow_dispatch`) and on every push to `main`. No `KEYSTORE_B64` is needed — `android/build.sh` generates a throwaway keystore when `KEYSTORE` is unset — so an APK from here installs beside the official one and cannot update it (a different signing key). Two jobs, the same split as `release.yml`: `web` (Node 22, `npm ci`, `npx vite build`, uploads `web/dist/index.html` as `web-dist`) and `apk` (JDK 17, downloads `web-dist`, `sdkmanager "platforms;android-36" "build-tools;35.0.0"`, `HM_SKIP_WEB_BUILD=1 VERSION_NAME=<ref> VERSION_CODE=1 android/build.sh`, then uploads `hermux.apk` and `hermes-mobile.apk` as the artifact `hermux-apk`, kept 14 days). `permissions` is `contents: read`, so no run can create a release or a tag; it never sets `KEYSTORE` or `HM_DEVTOOLS`.
 
 **`release.yml`, workflow "Release"**, runs on a pushed tag matching `v*`. Two jobs, so that no npm package's code runs where the signing key is (a package's install script or build plugin can leave a process running for the rest of its job, but cannot reach another job's runner); the workflow's token is read-only except in `apk`:
 

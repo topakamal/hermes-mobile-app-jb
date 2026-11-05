@@ -50,6 +50,16 @@ const toolResults = new Map()
 // The plugin's /memory (MEMORY.md / USER.md) and /bots, kept so POST /memory and PUT /bots/<name> change what the next GET says.
 const memory = { memory: { target: 'memory', entries: ['x', 'y'], used: 1100, limit: 2200 }, user: { target: 'user', entries: ['z'], used: 10, limit: 1375 } }
 let botKeep = []
+// Jailbreak templates (plugin jailbreak.py): the synced catalog and one profile's state. Applying flips `backup`, so
+// the sheet's Restore button appears exactly like it does after a real apply.
+let jailbreakState = { backup: false, chars: 0, head: '' }
+const JAILBREAK_TEMPLATES = [
+  { name: 'gemma4', filename: 'gemma4.md', tag: 'ollama:VladimirGav/gemma4-26b-16GB-VRAM', size: 13045 },
+  { name: 'Unified', filename: 'Unified.md', tag: 'Operating Policy', size: 11489 }
+]
+let jailbreakApplied = ''
+// Bots = Hermes profiles (GET /api/profiles): one default profile, like the mock's `profiles.list` RPC.
+const PROFILES = [{ name: 'default', is_default: true, model: 'mock-model', provider: 'mock', skill_count: 3, description: '' }]
 let diagOn = true // the diagnostic log's switch on Hermes's side (plugin PUT /diag)
 let prefsOrder = null // PUT /prefs (the chat list's pinned / manual order)
 // Canvas versions (the plugin keeps one per save): `${session}/${doc}` -> [{ rev, at, by, note, content }], started when first asked.
@@ -336,6 +346,26 @@ const server = http.createServer((req, res) => {
     if (p === '/api/plugins/hermes-mobile/refresh-logins') return send({ ok: true, anthropic: 0 })
     if (p === '/api/plugins/hermes-mobile/cleanup') return send({ ok: true, dry_run: false, removed: [], freed_bytes: 0 })
     if (p === '/api/plugins/hermes-mobile/profiles/link') return send({ linked: [] }) // profiles that now share the default's plugin
+    // Jailbreak templates (plugin jailbreak.py): the catalog, a sync, an apply and a restore. Applying flips the
+    // profile's `backup` so the sheet shows Restore exactly like it does after a real one.
+    if (p === '/api/plugins/hermes-mobile/jailbreaks') {
+      return send({ ok: true, templates: JAILBREAK_TEMPLATES.map(t => ({ ...t, ...(t.name === jailbreakApplied ? { applied: true } : {}) })), state: jailbreakState })
+    }
+    if (p === '/api/plugins/hermes-mobile/jailbreak/sync') return send({ ok: true, count: JAILBREAK_TEMPLATES.length })
+    if (p === '/api/plugins/hermes-mobile/jailbreak/apply') {
+      const b = JSON.parse(body || '{}')
+      if (!JAILBREAK_TEMPLATES.some(t => t.name === b.template)) return send({ detail: `Template '${b.template}' was not found — sync the list first` }, 400)
+      jailbreakApplied = b.template
+      jailbreakState = { backup: true, chars: 12779, head: b.template === 'gemma4' ? 'You are Gemma 4 (gemma-4-26b), a large language model' : 'Runtime scope note for this workspace.' }
+      return send({ ok: true, template: b.template, chars: jailbreakState.chars })
+    }
+    if (p === '/api/plugins/hermes-mobile/jailbreak/restore') {
+      if (!jailbreakState.backup) return send({ detail: 'There is no backup for this bot' }, 400)
+      jailbreakApplied = ''
+      jailbreakState = { backup: false, chars: 0, head: '' }
+      return send({ ok: true })
+    }
+    if (p === '/api/profiles' && req.method === 'GET') return send({ profiles: PROFILES }) // the Bots page's list
     if (p === '/api/model/info') return send({ model: 'mock-model' })
     // Account sign-ins: the pinned Hermes's list; ChatGPT is a device-code flow approved on the 2nd poll.
     if (p === '/api/providers/oauth' && req.method === 'GET')

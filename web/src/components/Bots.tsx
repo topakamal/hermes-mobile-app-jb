@@ -9,6 +9,7 @@ import { haptic } from '../bridge'
 import { promptDialog } from '../dialog'
 import { ScreenShell, Sheet, Status, useLoader } from './Screens'
 import { ModelPicker, profileLabel, setProfileModel } from './Settings'
+import { applyTemplate, loadTemplates, restoreSoul, syncTemplates, type JailbreakList, type JailbreakState } from '../jailbreak'
 
 interface Profile {
   name: string
@@ -156,7 +157,7 @@ function CreateSheet({ profiles, onClose, onCreated }: { profiles: Profile[]; on
 }
 
 function BotSheet({ p, onClose, onChanged }: { p: Profile; onClose: () => void; onChanged: (renamed?: string) => void }) {
-  const [view, setView] = useState<'main' | 'soul' | 'model' | 'rename'>('main')
+  const [view, setView] = useState<'main' | 'soul' | 'jb' | 'model' | 'rename'>('main')
   const label = profileLabel(p)
 
   const chat = async () => {
@@ -186,6 +187,7 @@ function BotSheet({ p, onClose, onChanged }: { p: Profile; onClose: () => void; 
   }
 
   if (view === 'soul') return <SoulSheet p={p} onClose={() => setView('main')} />
+  if (view === 'jb') return <JailbreakSheet p={p} onClose={() => setView('main')} />
   if (view === 'rename') return <RenameSheet p={p} onClose={() => setView('main')} onDone={n => onChanged(n)} />
   if (view === 'model')
     return (
@@ -221,6 +223,9 @@ function BotSheet({ p, onClose, onChanged }: { p: Profile; onClose: () => void; 
           </button>
           <button className="menu-item" onClick={() => setView('soul')}>
             ✎ Personality (SOUL.md)
+          </button>
+          <button className="menu-item" onClick={() => setView('jb')}>
+            🔓 Jailbreak templates
           </button>
           <button
             className="menu-item"
@@ -350,6 +355,100 @@ function SoulSheet({ p, onClose }: { p: Profile; onClose: () => void }) {
           }
         >
           Save
+        </button>
+      </div>
+    </Sheet>
+  )
+}
+
+/** Jailbreak picker: apply a template from togg53192-cmd/jailbreaks to this bot's SOUL.md, or put the old one back.
+ *  The prompt is the bot's identity, so it lands on every NEW chat; a backup of the previous SOUL.md is kept. */
+function JailbreakSheet({ p, onClose }: { p: Profile; onClose: () => void }) {
+  const [data, setData] = useState<JailbreakList | null>(null)
+  const [busy, setBusy] = useState('')
+  const [applied, setApplied] = useState<JailbreakState | undefined>()
+  const label = profileLabel(p)
+
+  const load = () =>
+    loadTemplates(p.name).then(r => {
+      setData(r)
+      setApplied(r.state)
+    })
+  useEffect(() => {
+    void load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [p.name])
+
+  const sync = async () => {
+    setBusy('sync')
+    try {
+      const r = await syncTemplates()
+      if (!r.ok) toast(r.error || 'Could not download the templates', 'error', 6000)
+      else toast(`${r.count ?? 0} templates ready`)
+      await load()
+    } catch (e) {
+      toast(errText(e), 'error', 6000)
+    }
+    setBusy('')
+  }
+
+  const apply = async (name: string) => {
+    setBusy(name)
+    try {
+      const r = await applyTemplate(p.name, name)
+      toast(`${r.template} → ${label}. New chats use it`)
+      await load()
+    } catch (e) {
+      toast(errText(e), 'error', 6000)
+    }
+    setBusy('')
+  }
+
+  const restore = async () => {
+    setBusy('restore')
+    try {
+      await restoreSoul(p.name)
+      toast('Previous SOUL.md restored')
+      await load()
+    } catch (e) {
+      toast(errText(e), 'error', 6000)
+    }
+    setBusy('')
+  }
+
+  const templates = data?.templates ?? []
+  return (
+    <Sheet title={`Jailbreak · ${label}`} onClose={onClose}>
+      <div className="sheet-scroll">
+        <div className="dim small pad">
+          Applies a prompt from the templates collection to this bot&apos;s SOUL.md. New chats in “{label}” start with it; chats
+          already open keep the prompt they built.
+        </div>
+        {data && !data.ok && <div className="dim small pad">{data.error || 'Template list unavailable'}</div>}
+        {data == null && <div className="dim pad">Loading...</div>}
+        {data?.ok && (
+          <div className="menu-list">
+            {templates.length === 0 && <div className="dim small pad">No templates yet — tap “Download templates”.</div>}
+            {templates.map(t => (
+              <button key={t.name} className="menu-item" disabled={busy !== ''} onClick={() => void apply(t.name)}>
+                {busy === t.name ? 'Applying...' : t.name}
+                <span className="dim small"> · {t.tag}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="sheet-actions">
+        <button className="btn" onClick={onClose}>
+          Back
+        </button>
+        {applied?.backup && (
+          <button className="btn" disabled={busy !== ''} onClick={() => void restore()}>
+            {busy === 'restore' ? 'Restoring...' : 'Restore'}
+          </button>
+        )}
+        <button className="btn primary" disabled={busy !== ''} onClick={() => void sync()}>
+          {busy === 'sync' ? 'Downloading...' : 'Download templates'}
         </button>
       </div>
     </Sheet>

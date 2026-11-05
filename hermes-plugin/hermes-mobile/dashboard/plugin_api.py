@@ -1414,3 +1414,70 @@ def google_install(profile: Optional[str] = None):
 @router.delete("/google")
 def google_delete(profile: Optional[str] = None):
     return _google(profile, lambda m, home: m.revoke(home))
+
+
+# ── Jailbreak templates (refusal-layer work, per profile) ──
+# Templates come from togg53192-cmd/jailbreaks. Applying one writes it to a profile's SOUL.md — Hermes's identity
+# slot #1 — so every NEW chat in that profile starts with the chosen prompt. Existing chats keep the prompt they
+# already built (Hermes freezes it per session), which is why the app says "new chats".
+
+
+def _jailbreak_mod():
+    import importlib.util
+    import sys
+
+    mod = sys.modules.get("hm_jailbreak")
+    if mod is None:
+        spec = importlib.util.spec_from_file_location("hm_jailbreak", Path(__file__).resolve().parent.parent / "jailbreak.py")
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules["hm_jailbreak"] = mod
+        spec.loader.exec_module(mod)
+    return mod
+
+
+class JailbreakApply(BaseModel):
+    template: str
+    profile: Optional[str] = "default"
+
+
+class JailbreakProfile(BaseModel):
+    profile: Optional[str] = "default"
+
+
+@router.get("/jailbreaks")
+async def jailbreaks_get(profile: Optional[str] = None):
+    """The synced template catalog: `{ok, templates: [{name, filename, tag, size}]}`, plus the profile's state."""
+    m = _jailbreak_mod()
+    try:
+        return {"ok": True, "templates": m.list_templates(), "state": m.status(_home(profile))}
+    except HTTPException:
+        raise
+    except Exception as e:
+        _log.warning("jailbreak list failed: %s", e)
+        return {"ok": False, "error": str(e)[:200], "templates": []}
+
+
+@router.post("/jailbreak/sync")
+async def jailbreak_sync(profile: Optional[str] = None):
+    """Clone or pull togg53192-cmd/jailbreaks into the jailbreak templates folder."""
+    return _jailbreak_mod().sync_templates()
+
+
+@router.post("/jailbreak/apply")
+async def jailbreak_apply(body: JailbreakApply):
+    """Write one template into the profile's SOUL.md (its previous file is kept as `SOUL.md.pre-jb.bak`)."""
+    m = _jailbreak_mod()
+    res = m.apply_template(body.template, _home(body.profile))
+    if not res.get("ok"):
+        raise HTTPException(status_code=400, detail=res.get("error", "Could not apply the template"))
+    return res
+
+
+@router.post("/jailbreak/restore")
+async def jailbreak_restore(body: JailbreakProfile):
+    """Put the profile's pre-jailbreak SOUL.md back."""
+    m = _jailbreak_mod()
+    res = m.restore_soul(_home(body.profile))
+    if not res.get("ok"):
+        raise HTTPException(status_code=400, detail=res.get("error", "Could not restore SOUL.md"))
+    return res
