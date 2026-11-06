@@ -23,6 +23,14 @@
 
 **[Install](#install)** · **[What you can do](#what-you-can-do)** · **[Privacy and security](#privacy-and-security)** · **[Full install guide](docs/install.md)** · **[What's new](CHANGELOG.md)**
 
+> **Fork.** This is [`topakamal/hermes-mobile-app-jb`](https://github.com/topakamal/hermes-mobile-app-jb), a fork of
+> [omarqaterge/hermes-mobile-app](https://github.com/omarqaterge/hermes-mobile-app). Two additions: a per-bot
+> **Jailbreak templates** picker ([Jailbreak prompts, per bot](#jailbreak-prompts-per-bot)) and an Actions workflow
+> that builds an installable APK without a signing secret. Everything else is upstream's work under its MIT licence;
+> upstream is the place for bugs in the rest (see [License and credits](#license-and-credits)).
+> Its releases are signed with this fork's own key, so a build from here installs beside the official app but cannot
+> update it — and the official app cannot update this one either.
+
 Hermux puts the open-source [Hermes Agent](https://github.com/NousResearch/hermes-agent) in your pocket, and then gives it
 hands. Hermes is a powerful agent with a real Linux computer behind it, but it lives in a terminal. Hermux turns it into a
 proper Android app: it streams its work as it goes, asks before it acts, reaches you in notifications while the app is
@@ -180,6 +188,21 @@ what Hermux remembers. Dark, OLED black or light.
 
 <p align="center"><img src="docs/img/more.png" alt="Drawer, memory screen and light theme" width="100%"></p>
 
+### Jailbreak prompts, per bot
+
+Some models refuse work a capable model should do — adult fiction at the intensity asked, offensive security
+engineering, dark or uncomfortable material — and a prompt in the bot's identity is the lever that moves it. **Bots → a
+bot → 🔓 Jailbreak templates** downloads a community collection of those prompts
+([togg53192-cmd/jailbreaks](https://github.com/togg53192-cmd/jailbreaks)) and lists them with the model each one is
+written for, so you pick the one matching the model you run. Applying it writes the prompt into that bot's `SOUL.md`,
+which is where Hermux keeps a bot's identity: **every new chat in that bot starts with it**, while the chats you already
+have keep the prompt they built. Your previous `SOUL.md` is kept as a backup and **Restore** puts it back.
+
+What to expect, plainly: this is prompt-level work, not a different model. It shifts behaviour on open-weight and
+already-uncensored models, and it is weakest on frontier models that filter server-side, where no prompt can reach.
+Nothing here changes the app's own guard rails — approvals, the dangerous-command floor and the per-chat access levels
+work the same, and a bot you give a jailbreak prompt can still not do anything you would not allow.
+
 ### Built to be safe
 
 An agent that can run commands and use your apps needs guard rails, and Hermux has them built in:
@@ -220,6 +243,7 @@ More, including what Hermux cannot protect you from, in [Privacy and security](#
 | **See the work** | Reasoning, live tool cards, sub-agents, the to-do list, how long the turn has run and the chat's `/goal`; a card with the files a turn changed and their diffs; file checkpoints to undo them; a ring showing how full the context is, with Compress |
 | **Commands** | `/` autocomplete for every skill and command; `/yolo` and `/fast` switch the chat at once |
 | **Models & bots** | Switch model and reasoning level per chat, star favourites; bots (Hermes profiles) with their own default model, keys and SOUL.md |
+| **Jailbreak templates** | Bots → a bot → "🔓 Jailbreak templates": download a collection of refusal-layer prompts and apply one to that bot, so every new chat in it starts with that prompt (a backup of the previous SOUL.md is kept, and Restore puts it back) |
 | **Cards in replies** | Interactive cards drawn by OpenUI, with live, read-only data (off switch: Settings → Replies → Dynamic UI). HTML and SVG code blocks get a Preview button |
 | **Screens** | Skills, memory, cron jobs, projects, a canvas gallery, every Hermux setting in plain words, and files with previews (tables for CSV, code, JSON, Mermaid, HTML, audio and video) |
 | **Setup check** | One screen that checks Termux, permissions, the plugin and battery settings, with a fix button for each |
@@ -384,7 +408,7 @@ free tier). It takes about 15 minutes, mostly waiting.
 
 **On the phone (Android 11+):**
 
-1. Download **hermux.apk** (`hermes-mobile.apk` on older releases) from the [latest release](https://github.com/omarqaterge/hermes-mobile-app/releases/latest),
+1. Download **hermux.apk** (`hermes-mobile.apk` on older releases) from the [latest release](https://github.com/topakamal/hermes-mobile-app-jb/releases/latest),
    install it and open it.
 2. Tap **Install all** to get Termux, Termux:API, Termux:Boot (from F-Droid) and Shizuku.
 3. Start Shizuku with Wireless debugging (needed: it gives Hermux the screen and apps; the app shows how). After that,
@@ -398,18 +422,18 @@ The app follows each step and picks up wherever you stopped.
 
 ```bash
 # Mac / Linux
-curl -fsSL https://raw.githubusercontent.com/omarqaterge/hermes-mobile-app/main/tools/setup-phone.sh -o setup-phone.sh && bash setup-phone.sh
+curl -fsSL https://raw.githubusercontent.com/topakamal/hermes-mobile-app-jb/main/tools/setup-phone.sh -o setup-phone.sh && bash setup-phone.sh
 ```
 
 ```powershell
 # Windows (PowerShell)
-irm https://raw.githubusercontent.com/omarqaterge/hermes-mobile-app/main/tools/setup-phone.ps1 | iex
+irm https://raw.githubusercontent.com/topakamal/hermes-mobile-app-jb/main/tools/setup-phone.ps1 | iex
 ```
 
 Or let your AI coding agent (Claude Code, Codex, Cursor…) do it, with this prompt:
 
 ```text
-Read https://raw.githubusercontent.com/omarqaterge/hermes-mobile-app/main/AGENT_INSTALL.md and follow it to set up Hermux on my Android phone.
+Read https://raw.githubusercontent.com/topakamal/hermes-mobile-app-jb/main/AGENT_INSTALL.md and follow it to set up Hermux on my Android phone.
 ```
 
 **Afterwards:** set battery to *Unrestricted* for Hermux, Termux and Shizuku, or Android may stop them. If something
@@ -418,7 +442,7 @@ doesn't work, open **Settings → Setup check** in the app.
 The [full install guide](docs/install.md) has every step in detail, the by-hand route, rooted phones (chroot-distro),
 a troubleshooting table and uninstalling.
 
-> If something fails, please [open an issue](https://github.com/omarqaterge/hermes-mobile-app/issues), or use Settings → About →
+> If something fails, please [open an issue](https://github.com/topakamal/hermes-mobile-app-jb/issues), or use Settings → About →
 > Report a problem in the app. Reports are public and carry only what you write, the versions, and a scrubbed log or a
 > screenshot if you add them. The app sends no usage stats unless you opt in: [privacy](docs/privacy.md).
 
@@ -521,7 +545,7 @@ You need **Node 22+**, **JDK 17** and the [Android command-line tools](https://d
 (`sdkmanager "platforms;android-36" "build-tools;35.0.0"`). No Gradle:
 
 ```bash
-git clone https://github.com/omarqaterge/hermes-mobile-app.git && cd hermes-mobile-app
+git clone https://github.com/topakamal/hermes-mobile-app-jb.git && cd hermes-mobile-app-jb
 (cd web && npm ci)
 ANDROID_HOME=/path/to/android-sdk JAVA_HOME=/path/to/jdk-17 VERSION_NAME=1.0.0 VERSION_CODE=1 android/build.sh
 adb install -r android/build/hermes-mobile.apk
@@ -529,6 +553,12 @@ adb install -r android/build/hermes-mobile.apk
 
 The first build creates a signing key in `~/.android/hermes-mobile.keystore` (never commit it). A self-built app can't update the
 downloaded one, because the keys differ: uninstall that first.
+
+**Or let GitHub build it.** This fork's **Build APK** workflow (Actions → *Build APK* → *Run workflow*, or automatically on
+a push to `main`) builds the app without any secret: it signs with a throwaway key, so the APK it uploads
+(`hermux-apk`, 14 days) installs beside the official app and cannot update it. It needs no JDK or Android SDK on your
+machine. A published release, built by `release.yml`, is signed with the repository's `KEYSTORE_B64` secret instead and
+is what in-app updates follow.
 
 For testing only, `HM_DEVTOOLS=1 android/build.sh` makes a build whose page can be inspected and driven from a computer over `adb`
 (Chrome DevTools, Playwright). It shows a "Test build: remote debugging is on" strip, and the script refuses to combine it with
@@ -544,3 +574,6 @@ Tests, project rules and what to do after a Hermes update: [CONTRIBUTING.md](CON
 MIT, see [LICENSE](LICENSE). `web/vendor/hermes-shared` is copied from [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent)
 (MIT, Copyright Nous Research), see [THIRD_PARTY.md](THIRD_PARTY.md). "Hermes" and the Hermes Agent name belong to their owners.
 Contributions and bug reports are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+This fork is [omarqaterge/hermes-mobile-app](https://github.com/omarqaterge/hermes-mobile-app) (MIT, Copyright its owner)
+plus the changes named in [What's new](CHANGELOG.md); bugs in anything else belong upstream.

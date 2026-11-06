@@ -1,15 +1,15 @@
 # Sets up Hermes + Hermux on an Android phone from a Windows computer, over adb. Plug the phone in with USB
 # debugging on, then in PowerShell:
-#   irm https://raw.githubusercontent.com/omarqaterge/hermes-mobile-app/main/tools/setup-phone.ps1 | iex
+#   irm https://raw.githubusercontent.com/topakamal/hermes-mobile-app-jb/main/tools/setup-phone.ps1 | iex
 # Same steps as tools/setup-phone.sh (macOS/Linux); explained in AGENT_INSTALL.md.
 # Without questions: set $env:HM_PROVIDER, HM_MODEL, HM_KEY_NAME, HM_KEY first, or HM_SKIP_MODEL=1 to connect the model in the app. HM_SERIAL picks a device.
 # Rooted phone: $env:HM_DISTRO='chroot' runs Debian with chroot-distro instead of proot-distro.
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'   # Invoke-WebRequest is very slow with the progress bar
 
-$RAW = 'https://raw.githubusercontent.com/omarqaterge/hermes-mobile-app/main'
-$APK_URL = 'https://github.com/omarqaterge/hermes-mobile-app/releases/latest/download/hermux.apk'
-$APK_URL_OLD = 'https://github.com/omarqaterge/hermes-mobile-app/releases/latest/download/hermes-mobile.apk'   # if the latest release has no hermux.apk yet
+$RAW = 'https://raw.githubusercontent.com/topakamal/hermes-mobile-app-jb/main'
+$APK_URL = 'https://github.com/topakamal/hermes-mobile-app-jb/releases/latest/download/hermux.apk'
+$APK_URL_OLD = 'https://github.com/topakamal/hermes-mobile-app-jb/releases/latest/download/hermes-mobile.apk'   # if the latest release has no hermux.apk yet
 $APP = 'com.omarqaterge.hermesmobile'
 $WORK = if ($env:HM_WORK) { $env:HM_WORK } else { Join-Path $HOME '.hermes-mobile-setup' }
 New-Item -ItemType Directory -Force -Path $WORK | Out-Null

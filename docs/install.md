@@ -48,7 +48,7 @@ The install takes about 15 minutes, mostly waiting.
 
 Install only Hermux; the app walks you through the rest and picks up wherever you stopped.
 
-1. Download **hermux.apk** (`hermes-mobile.apk` on older releases) from the [latest release](https://github.com/omarqaterge/hermes-mobile-app/releases/latest) on
+1. Download **hermux.apk** (`hermes-mobile.apk` on older releases) from the [latest release](https://github.com/topakamal/hermes-mobile-app-jb/releases/latest) on
    the phone, install it and open it (allow your browser to *install unknown apps* if Android asks).
 2. **Get the helper apps:** tap **Install all**. Android first asks you to allow Hermux to *install unknown apps*: turn
    the switch on and go back. Then tap **Install** on Android's prompt for each app: Termux, Termux:API and Termux:Boot (from
@@ -83,7 +83,7 @@ Install Termux, Termux:API and Termux:Boot from F-Droid (open Termux:Boot once) 
 paste this in Termux:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/omarqaterge/hermes-mobile-app/main/phone/bootstrap.sh -o hm.sh && bash hm.sh
+curl -fsSL https://raw.githubusercontent.com/topakamal/hermes-mobile-app-jb/main/phone/bootstrap.sh -o hm.sh && bash hm.sh
 ```
 
 Keep Termux open until it prints `HMSETUP DONE`; `HMSETUP TODO` lines just above it say what is still missing. At the end
@@ -97,12 +97,12 @@ number* 7 times, then Developer options → USB debugging), plug it in and run:
 
 ```bash
 # Mac / Linux
-curl -fsSL https://raw.githubusercontent.com/omarqaterge/hermes-mobile-app/main/tools/setup-phone.sh -o setup-phone.sh && bash setup-phone.sh
+curl -fsSL https://raw.githubusercontent.com/topakamal/hermes-mobile-app-jb/main/tools/setup-phone.sh -o setup-phone.sh && bash setup-phone.sh
 ```
 
 ```powershell
 # Windows (PowerShell)
-irm https://raw.githubusercontent.com/omarqaterge/hermes-mobile-app/main/tools/setup-phone.ps1 | iex
+irm https://raw.githubusercontent.com/topakamal/hermes-mobile-app-jb/main/tools/setup-phone.ps1 | iex
 ```
 
 It installs all five apps, gives them their permissions and starts Shizuku over USB. When Shizuku asks whether Termux may use it,
@@ -113,11 +113,11 @@ app instead.
 script and fixes what goes wrong:
 
 ```text
-Read https://raw.githubusercontent.com/omarqaterge/hermes-mobile-app/main/AGENT_INSTALL.md and follow it to set up Hermux on my Android phone.
+Read https://raw.githubusercontent.com/topakamal/hermes-mobile-app-jb/main/AGENT_INSTALL.md and follow it to set up Hermux on my Android phone.
 ```
 
 > Tested end to end on a clean Android 15 emulator and piece by piece on a real phone, but not yet on a brand-new real phone.
-> If something fails, please [open an issue](https://github.com/omarqaterge/hermes-mobile-app/issues).
+> If something fails, please [open an issue](https://github.com/topakamal/hermes-mobile-app-jb/issues).
 
 ## Rooted or not
 
@@ -195,7 +195,7 @@ Open **Settings → Setup check** in the app first: it shows what's missing, wit
 | Shizuku doesn't come back after a restart | The phone must be on Wi-Fi. On a new Wi-Fi, tap *Allow* (with *Always allow on this network*) when Android asks about wireless debugging. Still not: Hermux → Setup check → *Shizuku starts by itself* → *Start pairing* (pair again with the code). In Termux, `~/bin/hm-shizuku status` says `paired` or `unpaired` and `~/.hermes-mobile/hm-shizuku.log` has the last attempts. Android 10 and older: start it from a computer |
 | Hermux can't read your files | Setup check → *Hermux can use your files* → Allow, then Restart Hermux |
 | Termux:API won't install | Termux and Termux:API come from different stores. Install both from F-Droid |
-| Android says the update conflicts with the installed app, or asks you to uninstall it first | Every APK on the [Releases page](https://github.com/omarqaterge/hermes-mobile-app/releases) has the same signature and updates in place. This message means the installed copy is not from there (built yourself or by your coding agent: a different key), or is newer than the one you are installing. Uninstalling only Hermux keeps your chats, keys, memory and skills (they live in Hermes, inside Termux); you lose the app's own settings (theme, favourite models) and allow its permissions again on first start. Don't uninstall Termux |
+| Android says the update conflicts with the installed app, or asks you to uninstall it first | Every APK on the [Releases page](https://github.com/topakamal/hermes-mobile-app-jb/releases) has the same signature and updates in place. This message means the installed copy is not from there (built yourself or by your coding agent: a different key), or is newer than the one you are installing. Uninstalling only Hermux keeps your chats, keys, memory and skills (they live in Hermes, inside Termux); you lose the app's own settings (theme, favourite models) and allow its permissions again on first start. Don't uninstall Termux |
 
 ## Uninstall
 
@@ -215,7 +215,7 @@ child-process limit stays lifted, which is harmless (Android 14+: Developer opti
 
 ### By hand, without the app
 
-In Termux: `curl -fsSL https://raw.githubusercontent.com/omarqaterge/hermes-mobile-app/main/phone/uninstall.sh -o un.sh && bash un.sh --backup`
+In Termux: `curl -fsSL https://raw.githubusercontent.com/topakamal/hermes-mobile-app-jb/main/phone/uninstall.sh -o un.sh && bash un.sh --backup`
 (leave out `--backup` to skip the backup; add `--keys` to include keys). It is safe to run again. What it does, step by step, if you'd
 rather type it yourself:
 
