@@ -110,6 +110,19 @@ module.exports = async t => {
       check(!calls().some(c => (c.path || '').includes('mistral-e2e') || (c.query || '').includes('mistral-e2e')), 'providers: the endpoint key never appears in a URL')
       check((await names('Popular')).filter(n => n === 'Mistral').length === 0, 'providers: the Mistral preset is not listed twice')
     }
+    // A saved own endpoint shows its key pool, with "Add another key" (each key becomes a pool entry).
+    await section('Connected').locator('.set-row', { hasText: 'Mistral' }).click()
+    const es = pv.locator('.sheet', { has: pv.locator('.sheet-title', { hasText: 'Mistral' }) })
+    const epool = es.locator('.set-section', { hasText: 'Keys and logins' })
+    check((await epool.count()) === 1, 'providers: an own endpoint lists its Keys and logins')
+    await epool.getByLabel('Another Mistral key').fill('mistral-e2e-secret-2222')
+    await epool.getByRole('button', { name: 'Add', exact: true }).click()
+    await epool.locator('.set-row', { hasText: 'Added here' }).waitFor({ timeout: 5000 }).then(() => check(true, 'providers: a second endpoint key lands in the pool'), () => check(false, 'providers: a second endpoint key lands in the pool'))
+    {
+      const add = calls().filter(c => c.path === '/api/credentials/pool' && c.http === 'POST').pop()
+      check(add && add.body.provider === 'custom:mistral' && add.body.api_key === 'mistral-e2e-secret-2222', 'providers: a new endpoint key goes to its custom pool slug in the body')
+      check(!(add.query || '').includes('mistral-e2e'), 'providers: the added endpoint key never appears in a URL')
+    }
     await pv.close()
     await mock({ unconfigured: true }) // forgets the saved key and endpoint
     await mock({ configured: true })

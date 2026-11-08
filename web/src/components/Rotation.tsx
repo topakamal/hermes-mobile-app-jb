@@ -250,7 +250,7 @@ const same = (a: FallbackEntry, b: FallbackEntry) => a.provider.toLowerCase() ==
 /**
  * Inside a provider's sheet: every key and login in its credential pool, with status and how often each was used, the
  * rotation strategy (with two or more), Remove per entry and "Add another key". Only for providers with an API key or
- * pool entries; own endpoints keep their one key.
+ * pool entries; own endpoints show their keys here too (each is a pool entry, so multiple keys rotate).
  */
 export function KeyPoolSection({ entry: p, profile, onChanged }: { entry: ProviderEntry; profile: string; onChanged: () => void }) {
   const { data, error, reload, setData } = useLoader(
@@ -262,15 +262,17 @@ export function KeyPoolSection({ entry: p, profile, onChanged }: { entry: Provid
   )
   const [key, setKey] = useState('')
   const [busy, setBusy] = useState(false)
-  const slugs = p.endpoint ? [] : p.slugs.length ? p.slugs : [p.id]
+  // Own endpoints carry their pool slugs (e.g. `custom:my-box`); other rows fall back to the provider id.
+  const slugs = p.endpoint ? (p.slugs.length ? p.slugs : [p.id]) : p.slugs.length ? p.slugs : [p.id]
+  const poolSlug = (p.endpoint ? slugs.find(s => s.startsWith('custom:')) : null) || slugs[0] || p.id
   const list = data ? entriesFor(data.pool, slugs) : []
   // The pool keys belong to the provider id itself (OPENROUTER_API_KEY → openrouter): new keys and the strategy go there.
-  const strategy = strategyOf(data?.cfg, p.id)
-  const own = list.filter(e => e.provider === p.id) // the strategy only rotates these (not a grouped sign-in's pool)
+  const strategy = strategyOf(data?.cfg, poolSlug)
+  const own = list.filter(e => slugs.includes(e.provider)) // the strategy only rotates these (not a grouped sign-in's pool)
   const next = nextUp(own, strategy)
   // Hermes deliberately keeps a raw Copilot token out of the pool (it gets 400s): no extra keys there.
-  const canAdd = Boolean(p.key) && p.id !== 'copilot'
-  if (p.endpoint || (!p.key && !list.length)) return null
+  const canAdd = Boolean(p.key || p.endpoint) && p.id !== 'copilot' && poolSlug !== p.id
+  if ((!p.key && !p.endpoint && !list.length) || (p.endpoint && !poolSlug)) return null
 
   const done = (what: Promise<unknown>, ok: string | ((r: unknown) => string)) => {
     setBusy(true)
@@ -289,7 +291,7 @@ export function KeyPoolSection({ entry: p, profile, onChanged }: { entry: Provid
   }
   const add = () => {
     haptic()
-    void done(api('POST', `/api/credentials/pool?${qs({ profile })}`, { provider: p.id, api_key: key.trim() }, { profile: false }), `Key added to ${p.name}`).then(ok => ok && setKey(''))
+    void done(api('POST', `/api/credentials/pool?${qs({ profile })}`, { provider: poolSlug, api_key: key.trim() }, { profile: false }), `Key added to ${p.name}`).then(ok => ok && setKey(''))
   }
   const remove = (e: PoolEntry & { provider: string }) =>
     void confirmDialog({
@@ -328,7 +330,7 @@ export function KeyPoolSection({ entry: p, profile, onChanged }: { entry: Provid
           title={
             <span className="key-line">
               <span>{e.label || `Key ${e.index}`}</span>
-              <Badge e={e} next={e.provider === p.id ? next : undefined} strategy={strategy} />
+              <Badge e={e} next={e.provider === poolSlug || e.provider === p.id ? next : undefined} strategy={strategy} />
             </span>
           }
           sub={

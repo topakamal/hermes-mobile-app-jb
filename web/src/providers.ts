@@ -238,7 +238,7 @@ export function buildCatalog(env: Record<string, EnvRow> | null | undefined, acc
       id: `endpoint:${e.id}`,
       name: e.name || e.id,
       blurb: e.base_url,
-      slugs: [e.id, `custom:${e.id}`, `custom:${(e.name || e.id).toLowerCase().replace(/ /g, '-')}`],
+      slugs: [...new Set([e.id, `custom:${e.id}`, `custom:${(e.name || e.id).toLowerCase().replace(/ /g, '-')}`])],
       fields: [],
       signIns: [],
       url: '',
