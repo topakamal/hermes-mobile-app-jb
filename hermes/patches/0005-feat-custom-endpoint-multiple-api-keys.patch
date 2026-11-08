@@ -1,0 +1,111 @@
+From c68daf38615f1069c6f1aba2ecedbd0599cb5d48 Mon Sep 17 00:00:00 2001
+From: topakamal <topakamal@users.noreply.github.com>
+Date: Sun, 8 Nov 2026 09:28:10 +0000
+Subject: [PATCH] Add multiple API key support with automatic rotation/failover
+ for custom endpoints
+
+---
+ agent/credential_pool.py             | 20 ++++++++++++++++++--
+ hermes_cli/config.py                 |  2 +-
+ hermes_cli/web_models.py             |  1 +
+ hermes_cli/web_routers/config_env.py | 23 +++++++++++++++++++++++
+ 4 files changed, 43 insertions(+), 3 deletions(-)
+
+diff --git a/agent/credential_pool.py b/agent/credential_pool.py
+index cd64a15a1a..83b63c1f75 100644
+--- a/agent/credential_pool.py
++++ b/agent/credential_pool.py
+@@ -2994,16 +2994,32 @@ def _seed_custom_pool(pool_key: str, entries: List[PooledCredential]) -> Tuple[b
+ 
+     cp_config = _get_custom_provider_config(pool_key)
+     if cp_config:
+-        api_key = str(cp_config.get("api_key") or "").strip()
+         name = str(cp_config.get("name") or "").strip()
++        base_url = _norm_url(cp_config.get("base_url"))
++
++        # Load single api_key (backward compatibility)
++        api_key = str(cp_config.get("api_key") or "").strip()
+         if api_key:
+             seed.upsert(f"config:{name}", {
+                 "auth_type": AUTH_TYPE_API_KEY,
+                 "access_token": api_key,
+-                "base_url": _norm_url(cp_config.get("base_url")),
++                "base_url": base_url,
+                 "label": name or f"config:{name}",
+             })
+ 
++        # Load multiple api_keys array
++        api_keys = cp_config.get("api_keys")
++        if isinstance(api_keys, list):
++            for idx, key in enumerate(api_keys):
++                key_str = str(key or "").strip()
++                if key_str:
++                    seed.upsert(f"config:{name}:key{idx}", {
++                        "auth_type": AUTH_TYPE_API_KEY,
++                        "access_token": key_str,
++                        "base_url": base_url,
++                        "label": f"{name or 'config'}-key{idx}",
++                    })
++
+     # Seed from model.api_key when model.provider=='custom' and model.base_url matches
+     try:
+         config = _load_config_safe()
+diff --git a/hermes_cli/config.py b/hermes_cli/config.py
+index 26e4ec7117..3da3435637 100644
+--- a/hermes_cli/config.py
++++ b/hermes_cli/config.py
+@@ -1022,7 +1022,7 @@ _KNOWN_ROOT_KEYS = frozenset(DEFAULT_CONFIG.keys()) | _EXTRA_KNOWN_ROOT_KEYS
+ # Valid fields inside a custom_providers list entry (key_env is read at runtime by
+ # runtime_provider.py and auxiliary_client.py).
+ _VALID_CUSTOM_PROVIDER_FIELDS = {
+-    "name", "base_url", "api_key", "api_mode", "model", "models",
++    "name", "base_url", "api_key", "api_keys", "api_mode", "model", "models",
+     "context_length", "rate_limit_delay", "extra_body",
+     "ssl_ca_cert", "ssl_verify", "key_env", "catalog_provider"}
+ 
+diff --git a/hermes_cli/web_models.py b/hermes_cli/web_models.py
+index 29f1fd3572..d1db2938f0 100644
+--- a/hermes_cli/web_models.py
++++ b/hermes_cli/web_models.py
+@@ -49,6 +49,7 @@ class CustomEndpointUpdate(BaseModel):
+     base_url: str
+     model: str
+     api_key: Optional[str] = None
++    api_keys: Optional[List[str]] = None
+     # Same choices as the CLI's custom-provider setup; "" = auto-detect at runtime.
+     # None (older UI payload) leaves a hand-written api_mode alone.
+     api_mode: Optional[Literal["", "chat_completions", "codex_responses", "anthropic_messages"]] = None
+diff --git a/hermes_cli/web_routers/config_env.py b/hermes_cli/web_routers/config_env.py
+index 94c1b2eb35..b2ac6ba036 100644
+--- a/hermes_cli/web_routers/config_env.py
++++ b/hermes_cli/web_routers/config_env.py
+@@ -689,6 +689,29 @@ def _write_custom_endpoint(cfg: Dict[str, Any], body: CustomEndpointUpdate) -> T
+         entry["key_env"] = env_var
+         entry.pop("api_key", None)
+ 
++    # Handle multiple API keys (api_keys array)
++    if body.api_keys is not None:
++        # Clear existing multi-key env vars for this endpoint
++        existing_key_envs = [k for k in entry.keys() if k.startswith("key_env_")]
++        for k in existing_key_envs:
++            remove_env_value(entry[k])
++            entry.pop(k, None)
++        entry.pop("key_env", None)
++
++        # Write each key to a separate env var
++        for idx, key in enumerate(body.api_keys):
++            key_str = key.strip() if key else ""
++            if not key_str:
++                continue
++            if _ENV_REF_RE.fullmatch(key_str) or is_redacted_credential_preview(key_str):
++                raise HTTPException(status_code=400, detail=REDACTED_CREDENTIAL_WRITE_DETAIL)
++            multi_env_var = f"{env_var}_{idx}"
++            save_env_value(multi_env_var, key_str)
++            entry[f"key_env_{idx}"] = multi_env_var
++
++    # Backward compatibility: if only api_key is provided (not api_keys), keep single key_env behavior
++    # If api_keys is provided, it takes precedence and we don't write the single key_env
++
+     if stored_key is not None and stored_key != endpoint_id:
+         providers.pop(stored_key, None)
+     providers[endpoint_id] = entry
