@@ -31,6 +31,27 @@ def templates_dir() -> Path:
     return d
 
 
+def _template_files() -> List[Path]:
+    """Every template markdown in the clone (recursively — upstream keeps one folder per vendor), README excluded."""
+    d = templates_dir()
+    return sorted(p for p in d.rglob("*.md") if p.stem.lower() != "readme")
+
+
+def _unique_names() -> Dict[str, Path]:
+    """Stem -> path, suffixing the vendor folder when two folders share a stem so names stay unique."""
+    seen: Dict[str, List[Path]] = {}
+    for p in _template_files():
+        seen.setdefault(p.stem.lower(), []).append(p)
+    out: Dict[str, Path] = {}
+    for stem_low, paths in seen.items():
+        for p in paths:
+            if len(paths) == 1:
+                out[p.stem] = p
+            else:
+                out[f"{p.parent.name}/{p.stem}"] = p
+    return out
+
+
 def sync_templates() -> Dict[str, Any]:
     """Clone the collection, or fast-forward an existing clone. Never raises; returns `{ok, count|error}`."""
     d = templates_dir()
@@ -38,12 +59,12 @@ def sync_templates() -> Dict[str, Any]:
         if (d / ".git").is_dir():
             subprocess.run(["git", "-C", str(d), "pull", "--ff-only"], check=True,
                            timeout=CLONE_TIMEOUT, capture_output=True)
-        elif any(d.glob("*.md")):
-            return {"ok": True, "count": len(list(d.glob("*.md")))}  # no git here: keep what is there
+        elif any(d.rglob("*.md")):
+            return {"ok": True, "count": len(_template_files())}  # no git here: keep what is there
         else:
             subprocess.run(["git", "clone", "--depth", "1", REPO_URL, str(d)], check=True,
                            timeout=CLONE_TIMEOUT, capture_output=True)
-        return {"ok": True, "count": len(list(d.glob("*.md")))}
+        return {"ok": True, "count": len(_template_files())}
     except FileNotFoundError:
         return {"ok": False, "error": "git is not installed"}
     except subprocess.TimeoutExpired:
@@ -67,13 +88,11 @@ def _tag(text: str) -> str:
 def list_templates() -> List[Dict[str, Any]]:
     """Every template as `{name, filename, tag, size}`; syncs once when the folder has nothing yet."""
     d = templates_dir()
-    if not any(d.glob("*.md")):
+    if not any(d.rglob("*.md")):
         sync_templates()
     out: List[Dict[str, Any]] = []
-    for p in sorted(d.glob("*.md")):
-        if p.stem.lower() == "readme":
-            continue
-        out.append({"name": p.stem, "filename": p.name,
+    for name, p in sorted(_unique_names().items()):
+        out.append({"name": name, "filename": p.name,
                     "tag": _tag(p.read_text(encoding="utf-8", errors="replace")),
                     "size": p.stat().st_size})
     return out
@@ -86,16 +105,15 @@ def _convert(text: str) -> str:
 
 
 def _find(name: str) -> Optional[Path]:
-    """One template by exact name, then by filename, then by a case-insensitive substring match."""
+    """One template by its unique name (stem, or `vendor/stem` when two folders share a stem), then by a case-insensitive substring."""
     d = templates_dir()
     want = (name or "").strip()
     if not want:
         return None
-    for cand in (d / want, d / f"{want}.md"):
-        if cand.is_file():
-            return cand
+    if want in _unique_names():
+        return _unique_names()[want]
     low = want.lower()
-    hits = [p for p in sorted(d.glob("*.md")) if low in p.stem.lower()]
+    hits = [p for p in _template_files() if low in p.stem.lower()]
     return hits[0] if hits else None
 
 
