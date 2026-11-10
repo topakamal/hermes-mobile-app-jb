@@ -3673,6 +3673,9 @@ button.set-row:active, .set-row[role='presentation']:active { background: var(--
 /* Model providers list (Providers.tsx) */
 .provider-key { display: flex; gap: 8px; align-items: center; padding: 10px 12px; }
 .provider-key input { flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; outline: none; color: inherit; font: inherit; }
+.pool-batch { padding: 0 12px 10px; display: grid; gap: 8px; }
+.pool-batch textarea { width: 100%; min-height: 72px; resize: vertical; background: var(--bg); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; outline: none; color: inherit; font: inherit; box-sizing: border-box; }
+.pool-batch .provider-key { padding: 0; }
 .providers .set-value { white-space: nowrap; font-size: 0.78rem; }
 
 /* Setup flow: "Hermes already installed? Check" under the installer step (Setup.tsx InstallerStep) */

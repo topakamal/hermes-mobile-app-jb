@@ -123,6 +123,17 @@ module.exports = async t => {
       check(add && add.body.provider === 'custom:mistral' && add.body.api_key === 'mistral-e2e-secret-2222', 'providers: a new endpoint key goes to its custom pool slug in the body')
       check(!(add.query || '').includes('mistral-e2e'), 'providers: the added endpoint key never appears in a URL')
     }
+    // Batch add: paste several keys (one per line) in the same endpoint sheet.
+    await epool.getByRole('button', { name: 'Batch add' }).click()
+    const batchBefore = calls().filter(c => c.path === '/api/credentials/pool' && c.http === 'POST').length
+    await epool.getByLabel('Batch API keys (one per line)').fill('mistral-e2e-secret-3333\n\nmistral-e2e-secret-4444\n')
+    await epool.getByRole('button', { name: 'Add 2 keys' }).click()
+    await epool.locator('.set-row', { hasText: 'Added here' }).nth(2).waitFor({ timeout: 5000 }).then(() => check(true, 'providers: batch add lands extra keys in the pool'), () => check(false, 'providers: batch add lands extra keys in the pool'))
+    {
+      const added = calls().filter(c => c.path === '/api/credentials/pool' && c.http === 'POST').slice(batchBefore)
+      check(added.length === 2 && added[0].body.api_key === 'mistral-e2e-secret-3333' && added[1].body.api_key === 'mistral-e2e-secret-4444' && added.every(c => c.body.provider === 'custom:mistral'), 'providers: batch add posts each key to the custom pool slug, skipping blank lines')
+      check(added.every(c => !(c.query || '').includes('mistral-e2e')), 'providers: batch keys never appear in a URL')
+    }
     await pv.close()
     await mock({ unconfigured: true }) // forgets the saved key and endpoint
     await mock({ configured: true })

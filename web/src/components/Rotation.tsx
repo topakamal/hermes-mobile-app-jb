@@ -9,7 +9,7 @@
 //   DELETE /api/credentials/pool/<provider>/<index>. Hermes only reports each entry's last status (ok, exhausted, dead)
 //   and how often it was used: no cooldown end, and no route says which entry a running chat holds, so "In use" / "Next"
 //   is worked out from the strategy the way Hermes picks.
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { api, qs } from '../api'
 import { haptic } from '../bridge'
 import { confirmDialog } from '../dialog'
@@ -293,6 +293,42 @@ export function KeyPoolSection({ entry: p, profile, onChanged }: { entry: Provid
     haptic()
     void done(api('POST', `/api/credentials/pool?${qs({ profile })}`, { provider: poolSlug, api_key: key.trim() }, { profile: false }), `Key added to ${p.name}`).then(ok => ok && setKey(''))
   }
+  // Batch add: several keys at once, each on its own line (a .txt file or a paste). Keys are trimmed and blank lines
+  // skipped; each key becomes its own pool entry (POST /api/credentials/pool), so the pool rotates among them.
+  const [batchOpen, setBatchOpen] = useState(false)
+  const [batchText, setBatchText] = useState('')
+  const fileRef = useRef<HTMLInputElement>(null)
+  const batchKeys = () => batchText.split(/\r?\n/).map(s => s.trim()).filter(Boolean)
+  const readBatchFile = (files: FileList | null) => {
+    const f = files?.[0]
+    if (!f) return
+    const fr = new FileReader()
+    fr.onload = () => setBatchText(String(fr.result || ''))
+    fr.onerror = () => toast('Couldn’t read that file', 'error', 4000)
+    fr.readAsText(f)
+  }
+  const addBatch = async () => {
+    const keys = batchKeys()
+    if (!keys.length) return
+    haptic()
+    setBusy(true)
+    let ok = 0
+    let failed = 0
+    for (const k of keys) {
+      try {
+        await api('POST', `/api/credentials/pool?${qs({ profile })}`, { provider: poolSlug, api_key: k }, { profile: false })
+        ok++
+      } catch {
+        failed++
+      }
+    }
+    reload()
+    onChanged()
+    setBusy(false)
+    if (failed) toast(`${ok} added, ${failed} failed — the pool has the ones that worked`, 'error', 6000)
+    else toast(`${ok} key${ok === 1 ? '' : 's'} added to ${p.name}`)
+    if (ok) setBatchText('')
+  }
   const remove = (e: PoolEntry & { provider: string }) =>
     void confirmDialog({
       title: `Remove ${e.label || 'this key'}?`,
@@ -357,12 +393,39 @@ export function KeyPoolSection({ entry: p, profile, onChanged }: { entry: Provid
         />
       )}
       {canAdd && (
-        <div className="provider-key">
-          <input className="mono" type="password" autoComplete="off" value={key} onChange={ev => setKey(ev.target.value)} placeholder="Add another key" aria-label={`Another ${p.name} key`} />
-          <button className="btn" disabled={busy || !key.trim() || !data} onClick={add}>
-            Add
-          </button>
-        </div>
+        <>
+          <div className="provider-key">
+            <input className="mono" type="password" autoComplete="off" value={key} onChange={ev => setKey(ev.target.value)} placeholder="Add another key" aria-label={`Another ${p.name} key`} />
+            <button className="btn" disabled={busy || !key.trim() || !data} onClick={add}>
+              Add
+            </button>
+          </div>
+          {batchOpen ? (
+            <div className="pool-batch">
+              <textarea
+                className="mono"
+                value={batchText}
+                onChange={ev => setBatchText(ev.target.value)}
+                placeholder={`Paste keys, one per line, or choose a .txt file`}
+                rows={4}
+                aria-label="Batch API keys (one per line)"
+              />
+              <div className="provider-key">
+                <button className="btn" disabled={busy} onClick={() => fileRef.current?.click()}>
+                  📁 .txt
+                </button>
+                <button className="btn primary" disabled={busy || !batchKeys().length} onClick={() => void addBatch()}>
+                  Add {batchKeys().length} key{batchKeys().length === 1 ? '' : 's'}
+                </button>
+              </div>
+              <input ref={fileRef} type="file" accept=".txt,text/plain" hidden onChange={e => { readBatchFile(e.target.files); e.target.value = '' }} />
+            </div>
+          ) : (
+            <button className="btn" disabled={busy} onClick={() => setBatchOpen(true)}>
+              Batch add
+            </button>
+          )}
+        </>
       )}
     </Section>
   )
