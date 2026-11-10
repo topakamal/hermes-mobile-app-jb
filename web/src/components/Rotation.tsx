@@ -271,7 +271,7 @@ export function KeyPoolSection({ entry: p, profile, onChanged }: { entry: Provid
   const own = list.filter(e => slugs.includes(e.provider)) // the strategy only rotates these (not a grouped sign-in's pool)
   const next = nextUp(own, strategy)
   // Hermes deliberately keeps a raw Copilot token out of the pool (it gets 400s): no extra keys there.
-  const canAdd = Boolean(p.key || p.endpoint) && p.id !== 'copilot' && poolSlug !== p.id
+  const canAdd = Boolean(p.key || p.endpoint) && p.id !== 'copilot'
   if ((!p.key && !p.endpoint && !list.length) || (p.endpoint && !poolSlug)) return null
 
   const done = (what: Promise<unknown>, ok: string | ((r: unknown) => string)) => {
